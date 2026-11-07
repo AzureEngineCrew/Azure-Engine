@@ -2,6 +2,7 @@ package;
 
 import flixel.FlxG;
 import openfl.utils.Assets;
+import haxe.CallStack;
 import lime.utils.Assets as LimeAssets;
 import lime.utils.AssetLibrary;
 import lime.utils.AssetManifest;
@@ -16,6 +17,34 @@ using StringTools;
 
 class CoolUtil
 {
+	/**
+	 * Gets the last exception stack. 
+	*/
+	public static function getLastExceptionStack():String {
+		return CallStack.toString(CallStack.exceptionStack());
+	}
+
+	/**
+	 * Deletes a folder recursively
+	 * @param delete the Path to the folder.
+	*/
+	@:noUsing public static function deleteFolder(delete:String) {
+		#if sys
+		if (!FileSystem.exists(delete)) return;
+		var files:Array<String> = FileSystem.readDirectory(delete);
+		for(file in files) {
+			if (FileSystem.isDirectory(delete + "/" + file)) {
+				deleteFolder(delete + "/" + file);
+				FileSystem.deleteDirectory(delete + "/" + file);
+			} else {
+				try FileSystem.deleteFile(delete + "/" + file);
+				catch(e) Logs.warn("Could not delete " + delete "/" + file)''	
+			}
+		}
+		#end
+	}
+
+
 	public static var defaultDifficulties:Array<String> = [
 		'Easy',
 		'Normal',
