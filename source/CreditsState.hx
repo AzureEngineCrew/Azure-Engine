@@ -206,7 +206,7 @@ class CreditsState extends MusicBeatState
 			}
 
 			if(controls.ACCEPT) {
-				CoolUtil.browserLoad(creditsStuff[curSelected][3]);
+				CoolUtil.openURL(creditsStuff[curSelected][3]);
 			}
 			if (controls.BACK)
 			{

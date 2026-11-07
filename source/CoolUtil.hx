@@ -128,11 +128,36 @@ class CoolUtil
 			Assets.getSound(file, true);
 	}
 
-	public static function browserLoad(site:String) {
+	/**
+	 * Opens a URL in a browser
+	 * @deprecated `browserLoad(site)` is deprecated, use `openURL(url)` instead
+	 * @param site The URL to open.
+	*/
+	@:deprecated("`browserLoad` is deprecated, use `openURL` instead")
+	@:noUsing public static inline function browserLoad(site:String) {
 		#if linux
-		Sys.command('/usr/bin/xdg-open', [site]);
+			Sys.command('/usr/bin/xdg-open', [site]);
 		#else
-		FlxG.openURL(site);
+			FlxG.openURL(site);
 		#end
 	}
+
+	/**
+	 * Opens a URL in a browser
+	 * @param url The URL to open.
+	 */
+	@:noUsing public static inline function openURL(url:String) {
+		#if linux
+			var cmd = Sys.command("xdg-open", [url]);
+
+			if (cmd != 0) cmd = Sys.command("/usr/bin/xdg-open", [url]);
+			var safeURL = "'" + url.split("'").join("'\\''") + "'";
+			Sys.command("sh", ["-c", '(xdg-open $safeURL || /usr/bin/xdg-open $safeURL) >/dev/null 2>&1 &']);
+		#elseif (target.threaded)
+			sys.thread.Thread.create(() -> FlxG.openURL(url));
+		#else
+			FlxG.openURL(url);
+		#end
+	}
+
 }
