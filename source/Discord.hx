@@ -1,7 +1,10 @@
 package;
 
+#if DISCORD_RPC
 import Sys.sleep;
-import discord_rpc.DiscordRpc;
+import hxdiscord_rpc.Discord;
+import hxdiscord_rpc.Types;
+#end
 
 #if LUA_ALLOWED
 import llua.Lua;
@@ -10,86 +13,76 @@ import llua.State;
 
 using StringTools;
 
+#if DISCORD_RPC
 class DiscordClient
 {
 	public static var isInitialized:Bool = false;
-	public function new()
-	{
-		trace("Discord Client starting...");
-		DiscordRpc.start({
-			clientID: "863222024192262205",
-			onReady: onReady,
-			onError: onError,
-			onDisconnected: onDisconnected
-		});
-		trace("Discord Client started.");
-
-		while (true)
-		{
-			DiscordRpc.process();
-			sleep(2);
-			//trace("Discord Client Update");
-		}
-
-		DiscordRpc.shutdown();
-	}
-	
-	public static function shutdown()
-	{
-		DiscordRpc.shutdown();
-	}
-	
-	static function onReady()
-	{
-		DiscordRpc.presence({
-			details: "In the Menus",
-			state: null,
-			largeImageKey: 'icon',
-			largeImageText: "Psych Engine"
-		});
-	}
-
-	static function onError(_code:Int, _message:String)
-	{
-		trace('Error! $_code : $_message');
-	}
-
-	static function onDisconnected(_code:Int, _message:String)
-	{
-		trace('Disconnected! $_code : $_message');
-	}
+	static var presence:DiscordRichPresence = new DiscordRichPresence();
 
 	public static function initialize()
 	{
-		var DiscordDaemon = sys.thread.Thread.create(() ->
+		var handlers:DiscordEventHandlers = new DiscordEventHandlers();
+		handlers.ready = cpp.Function.fromStaticFunction(onReady);
+		handlers.disconnected = cpp.Function.fromStaticFunction(onDisconnected);
+		handlers.errored = cpp.Function.fromStaticFunction(onError);
+		Discord.Initialize("863222024192262205", cpp.RawPointer.addressOf(handlers), false, null);
+
+		sys.thread.Thread.create(() ->
 		{
-			new DiscordClient();
+			while (true)
+			{
+				#if DISCORD_DISABLE_IO_THREAD
+				Discord.UpdateConnection();
+				#end
+				Discord.RunCallbacks();
+				sleep(2);
+			}
 		});
+
 		trace("Discord Client initialized");
 		isInitialized = true;
 	}
 
-	public static function changePresence(details:String, state:Null<String>, ?smallImageKey : String, ?hasStartTimestamp : Bool, ?endTimestamp: Float)
+	public static function shutdown()
 	{
-		var startTimestamp:Float = if(hasStartTimestamp) Date.now().getTime() else 0;
+		Discord.Shutdown();
+	}
+
+	static function onReady(request:cpp.RawConstPointer<DiscordUser>):Void
+	{
+		presence.details = "In the Menus";
+		presence.largeImageKey = "icon";
+		presence.largeImageText = "Psych Engine";
+		Discord.UpdatePresence(cpp.RawConstPointer.addressOf(presence));
+	}
+
+	static function onDisconnected(errorCode:Int, message:cpp.ConstCharStar):Void
+	{
+		trace('Discord: Disconnected ($errorCode:$message)');
+	}
+
+	static function onError(errorCode:Int, message:cpp.ConstCharStar):Void
+	{
+		trace('Discord: Error ($errorCode:$message)');
+	}
+
+	public static function changePresence(details:String, state:Null<String>, ?smallImageKey:String, ?hasStartTimestamp:Bool, ?endTimestamp:Float)
+	{
+		var startTimestamp:Float = if (hasStartTimestamp) Date.now().getTime() else 0;
 
 		if (endTimestamp > 0)
-		{
 			endTimestamp = startTimestamp + endTimestamp;
-		}
 
-		DiscordRpc.presence({
-			details: details,
-			state: state,
-			largeImageKey: 'icon',
-			largeImageText: "Engine Version: " + MainMenuState.psychEngineVersion,
-			smallImageKey : smallImageKey,
-			// Obtained times are in milliseconds so they are divided so Discord can use it
-			startTimestamp : Std.int(startTimestamp / 1000),
-            endTimestamp : Std.int(endTimestamp / 1000)
-		});
+		presence.details = details;
+		presence.state = state;
+		presence.largeImageKey = "icon";
+		presence.largeImageText = "Engine Version: " + MainMenuState.psychEngineVersion;
+		presence.smallImageKey = smallImageKey;
+		// Obtained times are in milliseconds so they are divided so Discord can use it
+		presence.startTimestamp = Std.int(startTimestamp / 1000);
+		presence.endTimestamp = Std.int(endTimestamp / 1000);
 
-		//trace('Discord RPC Updated. Arguments: $details, $state, $smallImageKey, $hasStartTimestamp, $endTimestamp');
+		Discord.UpdatePresence(cpp.RawConstPointer.addressOf(presence));
 	}
 
 	#if LUA_ALLOWED
@@ -100,3 +93,21 @@ class DiscordClient
 	}
 	#end
 }
+#else
+class DiscordClient
+{
+	public static var isInitialized:Bool = false;
+
+	public static function shutdown() {}
+
+	public static function initialize() {}
+
+	public static function changePresence(details:String, state:Null<String>, ?smallImageKey:String, ?hasStartTimestamp:Bool, ?endTimestamp:Float) {}
+
+	#if LUA_ALLOWED
+	public static function addLuaCallbacks(lua:State) {
+		Lua_helper.add_callback(lua, "changePresence", function(details:String, state:Null<String>, ?smallImageKey:String, ?hasStartTimestamp:Bool, ?endTimestamp:Float) {});
+	}
+	#end
+}
+#end
