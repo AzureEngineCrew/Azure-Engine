@@ -37,8 +37,11 @@ class CoolUtil
 				deleteFolder(delete + "/" + file);
 				FileSystem.deleteDirectory(delete + "/" + file);
 			} else {
-				try FileSystem.deleteFile(delete + "/" + file);
-				catch(e) Logs.warn("Could not delete " + delete "/" + file)''	
+				try {
+					FileSystem.deleteFile(delete + "/" + file);
+				} catch(e:Dynamic) {
+					trace("Could not delete " + delete + "/" + file);
+				}
 			}
 		}
 		#end

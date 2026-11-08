@@ -1,9 +1,7 @@
 package;
 
 import flixel.graphics.FlxGraphic;
-#if desktop
 import Discord.DiscordClient;
-#end
 import Section.SwagSection;
 import Song.SwagSong;
 import WiggleEffect.WiggleEffectType;
@@ -245,12 +243,10 @@ class PlayState extends MusicBeatState
 	public var opponentCameraOffset:Array<Float> = null;
 	public var girlfriendCameraOffset:Array<Float> = null;
 
-	#if desktop
 	// Discord RPC variables
 	var storyDifficultyText:String = "";
 	var detailsText:String = "";
 	var detailsPausedText:String = "";
-	#end
 
 	//Achievement shit
 	var keysPressed:Array<Bool> = [];
@@ -275,6 +271,7 @@ class PlayState extends MusicBeatState
 		Paths.clearStoredMemory();
 
 		// for lua
+		DiscordClient.loadConfig();
 		instance = this;
 
 		debugKeysChart = ClientPrefs.copyKey(ClientPrefs.keyBinds.get('debug_1'));
@@ -1753,11 +1750,10 @@ class PlayState extends MusicBeatState
 		songLength = FlxG.sound.music.length;
 		FlxTween.tween(timeBar, {alpha: 1}, 0.5, {ease: FlxEase.circOut});
 		FlxTween.tween(timeTxt, {alpha: 1}, 0.5, {ease: FlxEase.circOut});
-		
-		#if desktop
+
 		// Updating Discord Rich Presence (with Time Left)
-		DiscordClient.changePresence(detailsText, SONG.song + " (" + storyDifficultyText + ")", iconP2.getCharacter(), true, songLength);
-		#end
+		DiscordClient.updateSongPresence(detailsText, SONG.song, storyDifficultyText, false, iconP2.getCharacter(), songLength);
+
 		setOnLuas('songLength', songLength);
 		callOnLuas('onSongStart', []);
 	}
@@ -2108,16 +2104,14 @@ class PlayState extends MusicBeatState
 			paused = false;
 			callOnLuas('onResume', []);
 
-			#if desktop
 			if (startTimer != null && startTimer.finished)
 			{
-				DiscordClient.changePresence(detailsText, SONG.song + " (" + storyDifficultyText + ")", iconP2.getCharacter(), true, songLength - Conductor.songPosition - ClientPrefs.noteOffset);
+    			DiscordClient.updateSongPresence(detailsText, SONG.song, storyDifficultyText, false, iconP2.getCharacter(), songLength - Conductor.songPosition - ClientPrefs.noteOffset);
 			}
 			else
 			{
-				DiscordClient.changePresence(detailsText, SONG.song + " (" + storyDifficultyText + ")", iconP2.getCharacter());
+ 				DiscordClient.updateSongPresence(detailsText, SONG.song, storyDifficultyText, false, iconP2.getCharacter());
 			}
-			#end
 		}
 
 		super.closeSubState();
@@ -2125,33 +2119,25 @@ class PlayState extends MusicBeatState
 
 	override public function onFocus():Void
 	{
-		#if desktop
-		if (health > 0 && !paused)
-		{
-			if (Conductor.songPosition > 0.0)
-			{
-				DiscordClient.changePresence(detailsText, SONG.song + " (" + storyDifficultyText + ")", iconP2.getCharacter(), true, songLength - Conductor.songPosition - ClientPrefs.noteOffset);
-			}
-			else
-			{
-				DiscordClient.changePresence(detailsText, SONG.song + " (" + storyDifficultyText + ")", iconP2.getCharacter());
-			}
-		}
-		#end
+    	if (health > 0 && !paused)
+    	{
+        	if (Conductor.songPosition > 0.0)
+            	DiscordClient.updateSongPresence(detailsText, SONG.song, storyDifficultyText, false, iconP2.getCharacter(), songLength - Conductor.songPosition - ClientPrefs.noteOffset);
+        	else
+            	DiscordClient.updateSongPresence(detailsText, SONG.song, storyDifficultyText, false, iconP2.getCharacter());
+   		}
 
-		super.onFocus();
+    	super.onFocus();
 	}
 	
 	override public function onFocusLost():Void
 	{
-		#if desktop
-		if (health > 0 && !paused)
-		{
-			DiscordClient.changePresence(detailsPausedText, SONG.song + " (" + storyDifficultyText + ")", iconP2.getCharacter());
-		}
-		#end
+    	if (health > 0 && !paused)
+    	{
+        	DiscordClient.updateSongPresence(detailsPausedText, SONG.song, storyDifficultyText, true, iconP2.getCharacter());
+    	}
 
-		super.onFocusLost();
+    	super.onFocusLost();
 	}
 
 	function resyncVocals():Void
@@ -2342,7 +2328,7 @@ class PlayState extends MusicBeatState
 				//}
 		
 				#if desktop
-				DiscordClient.changePresence(detailsPausedText, SONG.song + " (" + storyDifficultyText + ")", iconP2.getCharacter());
+					DiscordClient.updateSongPresence(detailsPausedText, SONG.song, storyDifficultyText, true, iconP2.getCharacter());				
 				#end
 			}
 		}
